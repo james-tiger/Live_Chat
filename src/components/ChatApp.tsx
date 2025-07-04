@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Users, LogOut, User, Smile, Paperclip, MoreVertical } from 'lucide-react';
+import { Send, Users, LogOut, User, Smile, Paperclip, MoreVertical, Menu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,10 +9,17 @@ import { TypingIndicator } from './TypingIndicator';
 import { OnlineUsers } from './OnlineUsers';
 import { useAuth } from '@/hooks/useAuth';
 import { useRealTimeChat } from '@/hooks/useRealTimeChat';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export const ChatApp = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const [showSidebar, setShowSidebar] = useState(!isMobile);
+  const [showOnlineUsers, setShowOnlineUsers] = useState(false);
+  const [message, setMessage] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
   const {
     rooms,
     selectedRoom,
@@ -24,30 +31,21 @@ export const ChatApp = () => {
     sendMessage,
     updateTypingIndicator,
   } = useRealTimeChat();
-  
-  const [message, setMessage] = useState('');
-  const [showOnlineUsers, setShowOnlineUsers] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout>();
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    setShowSidebar(!isMobile);
+  }, [isMobile]);
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = () => {
     if (message.trim()) {
-      await sendMessage(message);
+      sendMessage(message);
       setMessage('');
-      // Stop typing indicator
-      updateTypingIndicator(false);
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
     }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessage(e.target.value);
+    updateTypingIndicator(true);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -57,57 +55,50 @@ export const ChatApp = () => {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setMessage(e.target.value);
-    
-    // Handle typing indicator
-    updateTypingIndicator(true);
-    
-    // Clear existing timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-    
-    // Set new timeout to stop typing indicator
-    typingTimeoutRef.current = setTimeout(() => {
-      updateTypingIndicator(false);
-    }, 2000);
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
+  const handleSignOut = () => {
+    signOut();
+    navigate('/');
   };
 
   const handleAdminAccess = () => {
-    if (user?.email === 'admin@gmail.com') {
-      navigate('/admin');
-    }
+    navigate('/admin');
   };
 
-  if (loading) {
-    return (
-      <div className="flex h-screen bg-gradient-background items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex h-screen bg-gradient-background">
+    <div className="flex h-screen bg-gradient-background overflow-hidden">
+      {/* Mobile Menu Button */}
+      {isMobile && (
+        <button
+          onClick={() => setShowSidebar(!showSidebar)}
+          className="absolute top-4 left-4 z-50 p-2 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+      )}
+
       {/* Sidebar */}
-      <ChatSidebar 
-        rooms={rooms}
-        selectedRoom={selectedRoom}
-        onRoomSelect={setSelectedRoom}
-        currentUser={user}
-        onSignOut={handleSignOut}
-      />
+      <div className={`
+        ${isMobile ? 'absolute left-0 top-0 bottom-0 z-40' : 'relative'}
+        ${showSidebar ? 'translate-x-0' : '-translate-x-full'}
+        transition-transform duration-300 ease-in-out
+      `}>
+        <ChatSidebar 
+          rooms={rooms}
+          selectedRoom={selectedRoom}
+          onRoomSelect={(room) => {
+            setSelectedRoom(room);
+            if (isMobile) setShowSidebar(false);
+          }}
+          currentUser={user}
+          onSignOut={handleSignOut}
+        />
+      </div>
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
-        {/* Modern Header */}
+        {/* Chat Header */}
         <div className="h-16 bg-chat-sidebar/80 backdrop-blur-sm border-b border-border/50 px-6 flex items-center justify-between shadow-sm">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 ml-12 md:ml-0">
             <div className="w-3 h-3 bg-chat-online rounded-full animate-glow-pulse shadow-lg"></div>
             <div>
               <h2 className="font-semibold text-foreground text-lg">{selectedRoom?.name || 'General'}</h2>
@@ -158,15 +149,12 @@ export const ChatApp = () => {
           </div>
         </div>
 
-        <div className="flex-1 flex">
-          {/* Messages Area */}
+        {/* Messages and Input Area */}
+        <div className="flex-1 flex relative">
           <div className="flex-1 flex flex-col">
             <MessageList messages={messages} messagesEndRef={messagesEndRef} />
-            
-            {/* Typing Indicator */}
             <TypingIndicator typingUsers={typingUsers} />
-
-            {/* Modern Message Input */}
+            
             <div className="p-4 bg-chat-sidebar/50 backdrop-blur-sm border-t border-border/50">
               <div className="max-w-4xl mx-auto">
                 <div className="flex items-end space-x-3">
@@ -209,7 +197,12 @@ export const ChatApp = () => {
 
           {/* Online Users Sidebar */}
           {showOnlineUsers && (
-            <OnlineUsers users={onlineUsers} onClose={() => setShowOnlineUsers(false)} />
+            <div className={`${isMobile ? 'absolute inset-0 z-30' : 'relative'}`}>
+              <OnlineUsers 
+                users={onlineUsers} 
+                onClose={() => setShowOnlineUsers(false)}
+              />
+            </div>
           )}
         </div>
       </div>
