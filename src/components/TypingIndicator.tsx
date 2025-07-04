@@ -10,23 +10,24 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ typingUsers })
 
   const typingNames = typingUsers
     .map(user => user.profiles?.display_name || 'Someone')
-    .slice(0, 3); // Show max 3 names
+    .slice(0, 2); // Show max 2 names
 
-  const displayText = typingNames.length === 1
-    ? `${typingNames[0]} is typing...`
-    : typingNames.length === 2
-    ? `${typingNames[0]} and ${typingNames[1]} are typing...`
-    : `${typingNames[0]}, ${typingNames[1]} and ${typingNames.length - 2} others are typing...`;
+  let displayText;
+  if (typingNames.length === 1) {
+    displayText = <><span className="font-medium">{typingNames[0]}</span> is typing...</>;
+  } else if (typingNames.length === 2) {
+    displayText = <><span className="font-medium">{typingNames[0]}</span> and <span className="font-medium">{typingNames[1]}</span> are typing...</>;
+  } else {
+    displayText = <><span className="font-medium">{typingNames.slice(0, -1).join(', ')}</span>, and <span className="font-medium">{typingUsers.length - 2} others</span> are typing...</>;
+  }
 
   return (
-    <div className="px-4 pb-2">
-      <div className="flex items-center space-x-2 text-chat-typing">
-        <div className="flex space-x-1">
-          <div className="w-2 h-2 bg-chat-typing rounded-full animate-typing-dots"></div>
-          <div className="w-2 h-2 bg-chat-typing rounded-full animate-typing-dots" style={{ animationDelay: '0.2s' }}></div>
-          <div className="w-2 h-2 bg-chat-typing rounded-full animate-typing-dots" style={{ animationDelay: '0.4s' }}></div>
-        </div>
-        <span className="text-sm">{displayText}</span>
+    <div className="h-6 px-6 flex items-center text-xs text-muted-foreground transition-all duration-300">
+      <div className="flex items-center space-x-1.5 animate-fade-in">
+        <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce"></div>
+        <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+        <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+        <span className="ml-1">{displayText}</span>
       </div>
     </div>
   );

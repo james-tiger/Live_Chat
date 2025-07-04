@@ -1,25 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Send, Users, LogOut, User, Smile, Paperclip, MoreVertical, Menu } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useAuth } from '@/hooks/useAuth';
 import { ChatSidebar } from './ChatSidebar';
 import { MessageList } from './MessageList';
-import { TypingIndicator } from './TypingIndicator';
 import { OnlineUsers } from './OnlineUsers';
-import { useAuth } from '@/hooks/useAuth';
+import { Input } from '@/components/ui/input';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { TypingIndicator } from './TypingIndicator';
 import { useRealTimeChat } from '@/hooks/useRealTimeChat';
-import { useIsMobile } from '@/hooks/use-mobile';
+import React, { useState, useEffect, useRef } from 'react';
+import { Send, Users, LogOut, User, Smile, Paperclip, MoreVertical, Menu } from 'lucide-react';
 
 export const ChatApp = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
-  const [showSidebar, setShowSidebar] = useState(!isMobile);
-  const [showOnlineUsers, setShowOnlineUsers] = useState(false);
-  const [message, setMessage] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
   const {
     rooms,
     selectedRoom,
@@ -31,21 +24,31 @@ export const ChatApp = () => {
     sendMessage,
     updateTypingIndicator,
   } = useRealTimeChat();
+  
+  const [message, setMessage] = useState('');
+  const [showOnlineUsers, setShowOnlineUsers] = useState(false);
+  const [isSidebarOpen, setSidebarOpen] = useState(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout>();
 
-  useEffect(() => {
-    setShowSidebar(!isMobile);
-  }, [isMobile]);
-
-  const handleSendMessage = () => {
-    if (message.trim()) {
-      sendMessage(message);
-      setMessage('');
-    }
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setMessage(e.target.value);
-    updateTypingIndicator(true);
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleSendMessage = async () => {
+    if (message.trim()) {
+      await sendMessage(message);
+      setMessage('');
+      // Stop typing indicator
+      updateTypingIndicator(false);
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -55,50 +58,72 @@ export const ChatApp = () => {
     }
   };
 
-  const handleSignOut = () => {
-    signOut();
-    navigate('/');
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessage(e.target.value);
+    
+    // Handle typing indicator
+    updateTypingIndicator(true);
+    
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    // Set new timeout to stop typing indicator
+    typingTimeoutRef.current = setTimeout(() => {
+      updateTypingIndicator(false);
+    }, 2000);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
   };
 
   const handleAdminAccess = () => {
-    navigate('/admin');
+    if (user?.email === 'admin@gmail.com') {
+      navigate('/admin');
+    }
   };
 
-  return (
-    <div className="flex h-screen bg-gradient-background overflow-hidden">
-      {/* Mobile Menu Button */}
-      {isMobile && (
-        <button
-          onClick={() => setShowSidebar(!showSidebar)}
-          className="absolute top-4 left-4 z-50 p-2 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <Menu className="w-6 h-6" />
-        </button>
-      )}
-
-      {/* Sidebar */}
-      <div className={`
-        ${isMobile ? 'absolute left-0 top-0 bottom-0 z-40' : 'relative'}
-        ${showSidebar ? 'translate-x-0' : '-translate-x-full'}
-        transition-transform duration-300 ease-in-out
-      `}>
-        <ChatSidebar 
-          rooms={rooms}
-          selectedRoom={selectedRoom}
-          onRoomSelect={(room) => {
-            setSelectedRoom(room);
-            if (isMobile) setShowSidebar(false);
-          }}
-          currentUser={user}
-          onSignOut={handleSignOut}
-        />
+  if (loading) {
+    return (
+      <div className="flex h-screen bg-gradient-background items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
+    );
+  }
+
+  return (
+    <div className="flex h-screen bg-gradient-background">
+      {/* Sidebar */}
+      <ChatSidebar 
+        rooms={rooms}
+        selectedRoom={selectedRoom}
+        onRoomSelect={(room) => {
+          setSelectedRoom(room);
+          if (window.innerWidth < 768) {
+            setSidebarOpen(false);
+          }
+        }}
+        currentUser={user}
+        onSignOut={handleSignOut}
+        isOpen={isSidebarOpen}
+        onToggle={() => setSidebarOpen(!isSidebarOpen)}
+      />
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Chat Header */}
+      <div className="flex-1 flex flex-col transition-all duration-300 md:ml-0">
+        {/* Modern Header */}
         <div className="h-16 bg-chat-sidebar/80 backdrop-blur-sm border-b border-border/50 px-6 flex items-center justify-between shadow-sm">
-          <div className="flex items-center space-x-4 ml-12 md:ml-0">
+          <div className="flex items-center space-x-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen(!isSidebarOpen)}
+              className="md:hidden text-muted-foreground hover:text-foreground"
+            >
+              <Menu className="w-6 h-6" />
+            </Button>
             <div className="w-3 h-3 bg-chat-online rounded-full animate-glow-pulse shadow-lg"></div>
             <div>
               <h2 className="font-semibold text-foreground text-lg">{selectedRoom?.name || 'General'}</h2>
@@ -149,12 +174,15 @@ export const ChatApp = () => {
           </div>
         </div>
 
-        {/* Messages and Input Area */}
-        <div className="flex-1 flex relative">
+        <div className="flex-1 flex">
+          {/* Messages Area */}
           <div className="flex-1 flex flex-col">
             <MessageList messages={messages} messagesEndRef={messagesEndRef} />
-            <TypingIndicator typingUsers={typingUsers} />
             
+            {/* Typing Indicator */}
+            <TypingIndicator typingUsers={typingUsers} />
+
+            {/* Modern Message Input */}
             <div className="p-4 bg-chat-sidebar/50 backdrop-blur-sm border-t border-border/50">
               <div className="max-w-4xl mx-auto">
                 <div className="flex items-end space-x-3">
@@ -197,12 +225,7 @@ export const ChatApp = () => {
 
           {/* Online Users Sidebar */}
           {showOnlineUsers && (
-            <div className={`${isMobile ? 'absolute inset-0 z-30' : 'relative'}`}>
-              <OnlineUsers 
-                users={onlineUsers} 
-                onClose={() => setShowOnlineUsers(false)}
-              />
-            </div>
+            <OnlineUsers users={onlineUsers} onClose={() => setShowOnlineUsers(false)} />
           )}
         </div>
       </div>

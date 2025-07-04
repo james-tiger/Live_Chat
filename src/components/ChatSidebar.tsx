@@ -11,6 +11,8 @@ interface ChatSidebarProps {
   onRoomSelect: (room: Room) => void;
   currentUser: User | null;
   onSignOut: () => void;
+  isOpen: boolean;
+  onToggle: () => void;
 }
 
 export const ChatSidebar: React.FC<ChatSidebarProps> = ({
@@ -19,12 +21,26 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onRoomSelect,
   currentUser,
   onSignOut,
+  isOpen,
+  onToggle,
 }) => {
   const generalRoom = rooms.find(room => room.name === 'General') || rooms[0];
   const userInitials = currentUser?.email?.substring(0, 2).toUpperCase() || 'U';
 
   return (
-    <div className="w-80 bg-chat-sidebar border-r border-border shadow-sidebar flex flex-col">
+    <>
+      {/* Overlay for mobile */}
+      <div
+        className={`fixed inset-0 bg-black/60 z-30 md:hidden transition-opacity ${
+          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={onToggle}
+      ></div>
+      <div
+        className={`fixed top-0 left-0 h-full w-80 bg-chat-sidebar border-r border-border shadow-sidebar flex flex-col z-40 transition-transform duration-300 ease-in-out md:static ${
+          isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
       {/* Header */}
       <div className="p-6 border-b border-border">
         <div className="flex items-center space-x-3">
@@ -89,6 +105,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
           </Button>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
