@@ -69,8 +69,8 @@ The following scripts are available in the `package.json`:
 1.  **Clone the repository:**
 
     ```bash
-    git clone https://github.com/your-username/rapid-talk-sphere.git
-    cd rapid-talk-sphere
+    git clone https://github.com/your-username/Live_Chat.git
+    cd Live_Chat
     ```
 
 2.  **Install dependencies:**
@@ -120,7 +120,3 @@ The following scripts are available in the `package.json`:
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a pull request or open an issue.
-
-## 📄 License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.# Live_Chat
